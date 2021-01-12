@@ -2,23 +2,26 @@ package dev.tomdotbat.tasty_bytes.order_system;
 
 import java.util.ArrayList;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
+
 import dev.tomdotbat.tasty_bytes.menu.Builder;
 import dev.tomdotbat.tasty_bytes.menu.Drink;
 import dev.tomdotbat.tasty_bytes.menu.Main;
 
 public class MessageHandler {
-	public static boolean handleInput(String input) { //Input loop handler
+	public static boolean handleInput(String input, boolean isMultiOrder) { //Input loop handler
 		input = input.toLowerCase(); //Handle the input in lower case to avoid problems with casing
 		
-		if (input.contains(", ")) { //Handle each part of a comma separated message one by one
+		if (!isMultiOrder && input.contains(", ")) { //Handle each part of a comma separated message one by one
 			String[] splitInput = input.split(", ");
 
-			for (int i = 0; i < splitInput.length; i++) if (!handleInput(splitInput[i])) return false;			
+			for (String s : splitInput) if (!handleInput(s, true)) return false;
 			return true;
 		}
 		
 		if (currentOrder == null) return orderOrExit(input); //The user hasn't created an order yet, we should give them the option to make one or exit
-		return placeOrder(input); //Start/continue taking the user's order
+		return placeOrder(input, isMultiOrder); //Start/continue taking the user's order
 	}
 	
 	private static Order currentOrder;
@@ -34,7 +37,7 @@ public class MessageHandler {
 		}
 		else if (checkForOptionAliases(input, new String[] {"yes", "place", "order"})) { //The user wants to place an order, send them to that method
 			currentOrder = new Order();
-			placeOrder("");
+			placeOrder("", false);
 		}
 		else { //Initial message/invalid option
 			printMessage("** Welcome to Tasty Bytes, how can I help you?"); //Print the welcome message on startup/invalid input
@@ -44,12 +47,12 @@ public class MessageHandler {
 		return true;
 	}
 	
-	private static boolean placeOrder(String input) { //Order placement, the user can add and remove items from their order, cancel or finalise it from here
+	private static boolean placeOrder(String input, boolean isMultiOrder) { //Order placement, the user can add and remove items from their order, cancel or finalise it from here
 		boolean shouldHelp = lastPath.equals("placeOrder");
 		lastPath = "placeOrder";
 		
 		if (shouldHelp) {			
-			if (checkForOptionAliases(input, new String[] {"that's it", "thanks", "thats", "everything", "finish", "finalise"})) { //The user wants to finish the order
+			if (checkForOptionAliases(input, new String[] {"that's it", "thats", "everything", "finish", "finalise"})) { //The user wants to finish the order
 				String response = "** Excellent! I have placed your order for:\n";
 				ArrayList<Meal> mealList = currentOrder.getMealList();
 				
@@ -58,8 +61,10 @@ public class MessageHandler {
 				}
 				
 				response += "\nIn total that will be " + String.format("£%,.2f", currentOrder.calculateTotalCost()) + ". Thank you for calling.";
-				
 				printMessage(response);
+				
+				History.addOrder(currentOrder); //Store the order in history
+				
 				return false;
 			}
 		}
@@ -67,6 +72,43 @@ public class MessageHandler {
 		if (checkForOptionAliases(input, new String[] {"cancel", "nevermind", "exit", "leave"})) { //The user would like to cancel their order
 			printMessage("** Okay, I've cancelled your order. Thank you for calling.");
 			return false;
+		}
+		else if (checkForOptionAliases(input, new String[] {"ordered", "list", "bought", "so far"})) { //The user wants to see what they've ordered so far
+			String response = "** So far you have ordered: ";
+			ArrayList<Meal> mealList = currentOrder.getMealList();
+			
+			for (int i = 0; i < mealList.size(); i++) { //List all of the meals that were ordered
+				response += mealList.get(i).getFormattedMeal() + (i == mealList.size() - 1 ? "." : ", ");
+			}
+			
+			printMessage(response);
+		}
+		else if (input.contains("last") || input.contains("previous")) { //The user would like to see their previous orders
+			if (input.contains("have") || input.contains("like") || input.contains("want")) { //The user would like to order what they had last time
+				JSONArray lastOrder = History.getLatestOrder();
+				
+				if (lastOrder == null) {
+					printMessage("** Sorry, we don't have your last order on record.");
+					return true;
+				}
+				
+				printMessage("** Sure, I'll add everything from your last order.");
+				
+				for (int i = 0; i < lastOrder.length(); i++) { //Loop through each meal in the last order and add it
+					JSONObject meal = lastOrder.getJSONObject(i);										
+					String message = (meal.getBoolean("isSupersized") ? "large " : "") + meal.getString("main");
+					
+					if (meal.has("side")) message += " " + meal.getString("side");
+					if (meal.has("drink")) message += " " + meal.getString("drink");
+					
+					handleInput(message, true);
+				}
+				
+				return true;
+			}
+			
+			printMessage("** Your most recent orders are as follows:\n" + History.getFormattedOrders());
+			printMessage("?? Try asking \"Can I have the same order as last time please?\".");
 		}
 		else if (input.contains("menu")) { //The user would like more info on the menu			
 			shouldHelp = lastPath.equals("menuHelp");
@@ -96,7 +138,7 @@ public class MessageHandler {
 				printMessage("?? You try asking \"What sides on your menu are for the cheese burger?\"");
 			}
 		}
-		else if (input.contains("remove") || input.contains("delete") ) {
+		else if (input.contains("remove") || input.contains("delete")) { //The user wants to remove an item from their order
 			shouldHelp = lastPath.equals("removeItem");
 			lastPath = "removeItem";
 			
@@ -107,7 +149,7 @@ public class MessageHandler {
 				return true;
 			}
 			
-			ArrayList<Meal> mealList = currentOrder.getMealList();
+			ArrayList<Meal> mealList = currentOrder.getMealList(); //Find the main they're talking about and remove it from the order
 			for (int i = 0; i < mealList.size(); i++) {
 				if (mealList.get(i).compareMains(selectedMain)) {
 					mealList.remove(i);
@@ -120,16 +162,19 @@ public class MessageHandler {
 		}
 		else {
 			Main selectedMain = checkForValidMain(input);
-			if (input == "" || selectedMain == null) { //We can't find the name of a main in whatever they typed, show the initial/invalid option message
+			if ((input.equals("") || selectedMain == null) && !isMultiOrder) { //We can't find the name of a main in whatever they typed, show the initial/invalid option message
 				printMessage(shouldHelp ? "** Is there anything else you'd like to add?" : "** What would you like to order?");
-				if (shouldHelp) printMessage("?? Try asking \"I''ll have cheese burger with fries and coke\", \"What sides are on your menu for Cheese Burgers?\",\n?? \"Cancel my order\" or \"That's everything thanks\".");
+				if (shouldHelp) printMessage("?? Try asking \"I'll have cheese burger with fries and coke.\", \"What sides are on your menu for Cheese Burgers?\",\n?? \"Cancel my order\", \"That's everything thanks.\",\n?? \"Can I have my previous order?\", \"What have I ordered so far?\".");
 				return true;
 			}
+			
+			if (selectedMain == null) return true;
 			
 			Meal addedMeal = new Meal(selectedMain, selectedMain.checkForValidSide(input), checkForValidDrink(input), input.contains("large") || input.contains("supersize")); //Find out if they asked for sides, drinks and super-size then add it to the order
 			
 			currentOrder.addMeal(addedMeal);
 			printMessage("** Okay, I have added the " + addedMeal.getFormattedMeal() + " to your order.");
+			if (!isMultiOrder) printMessage("?? Try ordering multiple meals at once by seperating them with commas, for example: \"I'd like a cheese burger, veggie burger, and another cheese burger with salad please.\".");
 		}
 		
 		return true;
@@ -139,8 +184,9 @@ public class MessageHandler {
 		ArrayList<Main> mainsList = Builder.getMainsList();
 		
 		String[] splitInput = input.split(" ");
-		for (int i = 0; i < splitInput.length; i++) {
-			for (int j = 0; j < mainsList.size(); j++) if (mainsList.get(j).testSearchTerm(splitInput[i])) return mainsList.get(j);
+		for (String s : splitInput) {
+			if (s.length() < 3) continue; //Skips over words like "a"
+			for (int j = 0; j < mainsList.size(); j++) if (mainsList.get(j).testSearchTerm(s)) return mainsList.get(j);
 		}
 		
 		return null;
@@ -151,6 +197,7 @@ public class MessageHandler {
 		
 		String[] splitInput = input.split(" ");
 		for (int i = 0; i < splitInput.length; i++) {
+			if (splitInput[i].length() < 3) continue; //Skips over words like "a"
 			for (int j = 0; j < drinksList.size(); j++) if (drinksList.get(j).testSearchTerm(splitInput[i])) return drinksList.get(j);
 		}
 		

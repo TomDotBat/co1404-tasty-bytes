@@ -1,0 +1,102 @@
+{
+	"mains": [
+		{
+			"name": "Vegetable Burger",
+			"searchTags": ["vegetable", "veggie", "veg"],
+			"price": 3,
+			"largePrice": 3.4,
+			"availableSides": [
+				{
+                  "name": "Chips",
+                  "searchTags": ["chips", "fries"],
+                  "price": 0.8,
+                  "largePrice": 1.2
+               },
+               {
+                  "name": "Wedges",
+                  "searchTags": ["wedges"],
+                  "price": 0.8,
+                  "largePrice": 1.2
+               },
+               {
+                  "name": "Salad",
+                  "searchTags":["salad", "greens"],
+                  "price": 0.8,
+                  "largePrice": 1.2
+               }
+			]
+		},
+		{
+			"name": "Chicken Burger",
+			"searchTags": ["chicken", "chick"],
+			"price": 2.6,
+			"largePrice": 3.4,
+			"availableSides": [
+				{
+                  "name": "Chips",
+                  "searchTags": ["chips", "fries"],
+                  "price": 0.8,
+                  "largePrice": 1.2
+               },
+               {
+                  "name": "Wedges",
+                  "searchTags": ["wedges"],
+                  "price": 0.8,
+                  "largePrice": 1.2
+               },
+               {
+                  "name": "Salad",
+                  "searchTags":["salad", "greens"],
+                  "price": 0.8,
+                  "largePrice": 1.2
+               }
+			]
+		},
+		{
+			"name": "Cheese Burger",
+			"searchTags": ["cheese", "cheddar", "chese"],
+			"price": 3.2,
+			"largePrice": 3.6,
+			"availableSides": [
+				{
+                  "name": "Chips",
+                  "searchTags": ["chips", "fries"],
+                  "price": 0.8,
+                  "largePrice": 1.2
+               },
+               {
+                  "name": "Wedges",
+                  "searchTags": ["wedges"],
+                  "price": 0.8,
+                  "largePrice": 1.2
+               },
+               {
+                  "name": "Salad",
+                  "searchTags":["salad", "greens"],
+                  "price": 0.8,
+                  "largePrice": 1.2
+               }
+			]
+		}
+	],
+	"drinks": [
+		{
+          "name": "Coke",
+          "searchTags": ["coke", "cola", "pepsi"],
+          "price": 0.75,
+          "largePrice": 0.9
+       },
+		{
+          "name": "Water",
+          "searchTags": ["water"],
+          "price": 0.0,
+          "largePrice": 0.0
+       },
+		{
+          "name": "Coffee",
+          "searchTags": ["coffee", "coffe", "cofee", "cofe", "latte", "cappuccino", "americano"],
+          "price": 1.2,
+          "largePrice": 1.6
+       },
+	]
+}
